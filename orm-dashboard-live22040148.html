@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORM · SMM Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#F0F4FA; --surface:#FFFFFF; --surface2:#F7F9FC;
+  --border:#E3E9F4; --border2:#C8D6EA;
+  --blue-900:#0A1F44; --blue-800:#0D2957; --blue-700:#1A3F7A;
+  --blue-600:#1E50A2; --blue-500:#2563EB; --blue-400:#3B82F6;
+  --blue-300:#93C5FD; --blue-100:#DBEAFE; --blue-50:#EFF6FF;
+  --text:#0A1F44; --text2:#4A5C7A; --text3:#8A9BBC; --text4:#B8C8DC;
+  --positive:#059669; --positive-bg:#ECFDF5;
+  --negative:#DC2626; --negative-bg:#FFF1F1;
+  --neutral:#D97706; --neutral-bg:#FFFBEB;
+  --shadow-sm:0 1px 3px rgba(10,31,68,.06),0 1px 2px rgba(10,31,68,.04);
+  --shadow:0 4px 16px rgba(10,31,68,.08),0 2px 4px rgba(10,31,68,.04);
+  --shadow-lg:0 12px 40px rgba(10,31,68,.12),0 4px 8px rgba(10,31,68,.06);
+  --radius:12px; --font:'Plus Jakarta Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--blue-900);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s;}
+#loader.hide{opacity:0;pointer-events:none;}
+.loader-logo{font-size:13px;font-weight:700;letter-spacing:3px;color:rgba(255,255,255,.9);margin-bottom:32px;}
+.loader-bar-wrap{width:240px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;}
+.loader-bar{height:100%;background:var(--blue-400);border-radius:2px;animation:loadFill 2.5s ease forwards;}
+@keyframes loadFill{from{width:0}to{width:100%}}
+.loader-status{margin-top:16px;font-size:11px;color:rgba(255,255,255,.4);font-family:var(--mono);}
+.loader-error{margin-top:16px;font-size:12px;color:#FCA5A5;max-width:420px;text-align:center;line-height:1.7;display:none;}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:200;background:var(--blue-900);display:flex;align-items:center;padding:0 28px;height:56px;box-shadow:0 2px 12px rgba(10,31,68,.25);}
+.topbar-wordmark{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.9);margin-right:32px;white-space:nowrap;padding-right:28px;border-right:1px solid rgba(255,255,255,.12);}
+.brand-tabs{display:flex;gap:2px;flex-shrink:0;}
+.brand-tab{padding:0 18px;height:56px;line-height:56px;font-size:13px;font-weight:500;color:rgba(255,255,255,.5);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;font-family:var(--font);}
+.brand-tab:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.04);}
+.brand-tab.active{color:#fff;border-bottom-color:var(--blue-400);font-weight:600;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.month-selector{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 14px;}
+.month-selector select{background:none;border:none;color:#fff;font-size:13px;font-family:var(--font);font-weight:600;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;padding-right:16px;}
+.month-selector select option{background:#0D2957;color:#fff;}
+.month-selector-icon{color:rgba(255,255,255,.5);font-size:12px;pointer-events:none;margin-left:-12px;}
+.vs-badge{font-size:10px;font-weight:600;letter-spacing:.5px;color:rgba(255,255,255,.4);font-family:var(--mono);}
+.refresh-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,.7);font-size:11px;font-family:var(--font);cursor:pointer;font-weight:600;transition:all .2s;}
+.refresh-btn:hover{background:rgba(255,255,255,.14);color:#fff;}
+.data-badge{font-size:10px;color:rgba(255,255,255,.35);font-family:var(--mono);white-space:nowrap;}
+
+/* LAYOUT */
+.page{display:none;}
+.page.active{display:block;animation:pageIn .3s ease;}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.container{max-width:1280px;margin:0 auto;padding:28px 28px 80px;}
+
+/* PAGE HEADER */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid var(--border);}
+.page-header-left{display:flex;align-items:center;gap:14px;}
+.brand-color-bar{width:4px;height:44px;border-radius:2px;flex-shrink:0;}
+.page-title{font-size:22px;font-weight:800;color:var(--blue-900);letter-spacing:-.5px;}
+.page-subtitle{font-size:12px;color:var(--text3);margin-top:3px;}
+.comparison-pill{background:var(--blue-50);border:1px solid var(--blue-100);border-radius:8px;padding:8px 14px;text-align:right;}
+.comparison-pill .cp-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:3px;}
+.comparison-pill .cp-value{font-size:13px;font-weight:700;color:var(--blue-600);font-family:var(--mono);}
+
+/* KPIs */
+.kpi-row{display:grid;gap:14px;margin-bottom:24px;}
+.kpi-row-4{grid-template-columns:repeat(4,1fr);}
+.kpi-row-5{grid-template-columns:repeat(5,1fr);}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 20px 16px;box-shadow:var(--shadow-sm);position:relative;transition:box-shadow .2s,transform .2s;}
+.kpi-card:hover{box-shadow:var(--shadow);transform:translateY(-1px);}
+.kpi-card-top-accent{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0;}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;}
+.kpi-value{font-size:30px;font-weight:800;color:var(--blue-900);line-height:1;margin-bottom:10px;letter-spacing:-1px;}
+.kpi-footer{display:flex;align-items:center;gap:8px;}
+.kpi-delta{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:var(--mono);}
+.kpi-delta.up{background:#ECFDF5;color:#065F46;}
+.kpi-delta.dn{background:#FFF1F1;color:#991B1B;}
+.kpi-delta.nt{background:#F8FAFC;color:var(--text3);}
+.kpi-vs{font-size:10px;color:var(--text4);}
+
+/* SECTION LABEL */
+.section-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;margin-top:28px;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm);}
+.card-title{font-size:13px;font-weight:700;color:var(--blue-900);margin-bottom:2px;}
+.card-sub{font-size:11px;color:var(--text3);margin-bottom:18px;}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+
+/* SENTIMENT */
+.sentiment-row{display:flex;gap:24px;align-items:center;margin-top:10px;}
+.sentiment-donut-wrap{width:180px;height:180px;flex-shrink:0;}
+.sentiment-stats{flex:1;display:flex;flex-direction:column;gap:10px;}
+.sent-stat-row{display:flex;align-items:center;gap:10px;}
+.sent-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.sent-label{font-size:12px;color:var(--text2);width:70px;}
+.sent-bar-track{flex:1;background:#F1F5F9;border-radius:3px;height:8px;}
+.sent-bar-fill{height:100%;border-radius:3px;}
+.sent-pct{font-size:12px;font-weight:700;font-family:var(--mono);width:36px;text-align:right;color:var(--blue-900);}
+.sent-count{font-size:11px;color:var(--text3);font-family:var(--mono);width:50px;text-align:right;}
+
+/* INTENTION */
+.intent-list{display:flex;flex-direction:column;gap:9px;margin-top:8px;}
+.intent-row{display:flex;align-items:center;gap:10px;}
+.intent-label{font-size:12px;color:var(--text2);width:100px;flex-shrink:0;}
+.intent-bar-track{flex:1;background:#F1F5F9;border-radius:3px;height:16px;overflow:hidden;}
+.intent-bar-fill{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:rgba(30,50,100,.7);min-width:2px;}
+.intent-pct{font-size:12px;font-weight:700;font-family:var(--mono);width:36px;color:var(--blue-900);}
+.intent-count{font-size:11px;color:var(--text3);font-family:var(--mono);width:40px;text-align:right;}
+
+/* PLATFORMS */
+.platform-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .15s;border:1px solid transparent;}
+.platform-row:hover{background:var(--blue-50);border-color:var(--blue-100);}
+.platform-icon{font-size:15px;width:22px;flex-shrink:0;text-align:center;}
+.platform-name{font-size:12px;font-weight:600;color:var(--text);width:110px;flex-shrink:0;}
+.platform-bar-track{flex:1;background:#F1F5F9;border-radius:3px;height:8px;}
+.platform-bar-fill{height:100%;border-radius:3px;}
+.platform-count{font-size:12px;font-weight:700;font-family:var(--mono);color:var(--blue-700);width:46px;text-align:right;}
+.platform-pct{font-size:11px;color:var(--text3);font-family:var(--mono);width:38px;text-align:right;}
+.platform-delta{font-size:10px;font-family:var(--mono);width:46px;text-align:right;}
+.platform-delta.up{color:var(--positive);}
+.platform-delta.dn{color:var(--negative);}
+
+/* TAG CHART */
+.tag-chart-wrap{height:260px;position:relative;}
+
+/* HEATMAP */
+.heatmap-wrap{overflow-x:auto;}
+.heatmap-table{width:100%;border-collapse:separate;border-spacing:4px;min-width:560px;}
+.hm-emotion-header{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);text-align:center;padding:6px 4px;}
+.hm-platform-label{font-size:11px;color:var(--text2);text-align:right;padding-right:10px;white-space:nowrap;font-weight:500;}
+.hm-cell{border-radius:6px;padding:8px 4px;text-align:center;font-size:11px;font-weight:700;font-family:var(--mono);cursor:pointer;transition:transform .15s,box-shadow .15s;min-width:80px;position:relative;}
+.hm-cell:hover{transform:scale(1.08);box-shadow:var(--shadow);z-index:2;}
+.hm-cell-val{display:block;font-size:13px;}
+.hm-cell-pct{display:block;font-size:9px;opacity:.65;margin-top:1px;}
+
+/* SUMMARY BOX */
+.summary-box{background:var(--blue-50);border:1px solid var(--blue-100);border-left:3px solid var(--blue-500);border-radius:0 var(--radius) var(--radius) 0;padding:14px 16px;margin-top:14px;font-size:12px;color:var(--text2);line-height:1.8;}
+.summary-box strong{color:var(--blue-900);}
+
+/* INSIGHTS */
+.insight-list{display:flex;flex-direction:column;gap:10px;}
+.insight-item{background:var(--surface);border:1px solid var(--border);border-left:3px solid;border-radius:0 var(--radius) var(--radius) 0;padding:14px 16px;box-shadow:var(--shadow-sm);}
+.insight-item.crit{border-left-color:var(--negative);}
+.insight-item.warn{border-left-color:var(--neutral);}
+.insight-item.info{border-left-color:var(--blue-500);}
+.insight-item.good{border-left-color:var(--positive);}
+.insight-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px;display:inline-block;margin-bottom:6px;}
+.insight-badge.crit{background:#FFF1F1;color:#991B1B;}
+.insight-badge.warn{background:#FFFBEB;color:#92400E;}
+.insight-badge.info{background:var(--blue-50);color:var(--blue-700);}
+.insight-badge.good{background:#ECFDF5;color:#065F46;}
+.insight-title{font-size:13px;font-weight:700;color:var(--blue-900);margin-bottom:4px;}
+.insight-desc{font-size:12px;color:var(--text2);line-height:1.6;}
+
+/* BRAND OVERVIEW CARDS */
+.brand-cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:8px;}
+.brand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.brand-card:hover{box-shadow:var(--shadow);transform:translateY(-2px);border-color:var(--blue-300);}
+.brand-card-accent{position:absolute;top:0;left:0;right:0;height:3px;}
+.brand-card-name{font-size:15px;font-weight:800;color:var(--blue-900);margin-bottom:2px;}
+.brand-card-total{font-size:34px;font-weight:800;line-height:1;margin:14px 0 4px;letter-spacing:-1px;}
+.brand-card-label{font-size:11px;color:var(--text3);margin-bottom:4px;}
+.brand-card-delta{font-size:11px;font-family:var(--mono);font-weight:600;}
+.brand-card-sentiment{display:flex;gap:3px;height:5px;border-radius:3px;overflow:hidden;margin:12px 0;}
+.brand-card-legend{display:flex;gap:10px;flex-wrap:wrap;}
+.brand-card-legend-item{font-size:10px;color:var(--text2);display:flex;align-items:center;gap:4px;}
+.brand-card-legend-dot{width:6px;height:6px;border-radius:50%;}
+.brand-card-cta{font-size:10px;color:var(--text4);font-family:var(--mono);margin-top:10px;}
+
+/* WRITTEN SUMMARY */
+.written-summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px 28px;color:var(--text2);margin-bottom:14px;box-shadow:var(--shadow-sm);}
+.ws-text{font-size:12.5px;line-height:1.85;}
+.ws-text p+p{margin-top:8px;}
+.ws-text strong{color:var(--blue-900);}
+
+/* EMPTY */
+.empty-state{padding:40px;text-align:center;color:var(--text3);font-size:12px;border:1px dashed var(--border);border-radius:var(--radius);}
+
+/* MODAL / DRILLDOWN */
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,31,68,.55);z-index:400;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:92%;max-width:720px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg);animation:pageIn .2s ease;}
+.modal-header{flex-shrink:0;background:var(--surface);padding:16px 24px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;z-index:10;}
+.modal-title{font-size:15px;font-weight:800;color:var(--blue-900);flex:1;margin-bottom:2px;}
+.modal-close{flex-shrink:0;width:28px;height:28px;border-radius:6px;background:none;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text2);transition:all .15s;}
+.modal-close:hover{background:var(--bg);}
+.modal-body{flex:1;overflow-y:auto;padding:0;}
+.modal-content{padding:16px 24px 28px;}
+.modal-section-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;margin-top:16px;}
+.modal-section-label:first-child{margin-top:0;}
+
+/* BREADCRUMB */
+.bc{display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.bc-item{font-size:11px;cursor:pointer;color:var(--text3);transition:color .15s;padding:2px 0;}
+.bc-item:hover{color:var(--blue-500);}
+.bc-item.cur{color:var(--blue-700);font-weight:600;cursor:default;}
+.bc-sep{font-size:11px;color:var(--text4);}
+
+/* DRILL ROWS */
+.drill-row{display:flex;align-items:center;gap:12px;padding:12px 10px;border-radius:8px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--border);}
+.drill-row:last-child{border-bottom:none;}
+.drill-row:hover{background:var(--blue-50);}
+.drill-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.drill-name{font-size:13px;font-weight:600;flex:1;color:var(--text);}
+.drill-bar-track{width:120px;background:#F1F5F9;border-radius:3px;height:6px;flex-shrink:0;}
+.drill-bar-fill{height:100%;border-radius:3px;}
+.drill-count{font-size:16px;font-weight:800;font-family:var(--mono);width:50px;text-align:right;}
+.drill-pct{font-size:11px;color:var(--text3);font-family:var(--mono);width:38px;text-align:right;}
+.drill-arrow{color:var(--text4);font-size:14px;}
+
+/* MENTION CARDS */
+.mention-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;}
+.mention-card:last-child{margin-bottom:0;}
+.mention-card:last-child{margin-bottom:0;}
+.mention-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.mpill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.mpill-pos{background:var(--positive-bg);color:var(--positive);}
+.mpill-neg{background:var(--negative-bg);color:var(--negative);}
+.mpill-neu{background:var(--neutral-bg);color:var(--neutral);}
+.mpill-intent{background:var(--blue-50);color:var(--blue-700);}
+.mpill-emo{background:#F3E8FF;color:#7C3AED;}
+.mpill-tag{background:#F1F5F9;color:var(--text2);}
+.mention-text{font-size:12px;color:var(--text);line-height:1.6;font-style:italic;margin-bottom:8px;}
+.mention-src{font-size:10px;color:var(--text3);font-family:var(--mono);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.mention-link{font-size:10px;font-weight:600;color:var(--blue-500);text-decoration:none;border:1px solid var(--blue-100);background:var(--blue-50);padding:2px 8px;border-radius:4px;}
+.mention-link:hover{background:var(--blue-100);}
+.mention-count-badge{font-size:10px;color:var(--text3);font-family:var(--mono);padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;}
+
+/* MODAL FILTER ROW */
+.modal-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.filter-pill{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s;}
+.filter-pill:hover,.filter-pill.active{background:var(--blue-500);color:#fff;border-color:var(--blue-500);}
+
+@media(max-width:900px){
+  .brand-cards-grid{grid-template-columns:1fr 1fr;}
+  .g2{grid-template-columns:1fr;}
+  .g3{grid-template-columns:1fr 1fr;}
+  .kpi-row-4{grid-template-columns:1fr 1fr;}
+  .topbar{padding:0 16px;}
+  .container{padding:16px 16px 60px;}
+  .sentiment-row{flex-direction:column;}
+  .sentiment-donut-wrap{width:100%;height:180px;}
+}
+
+/* ANALYST NOTES */
+.notes-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow-sm); }
+.notes-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.notes-title { font-size:13px; font-weight:700; color:var(--blue-900); }
+.notes-meta { font-size:10px; color:var(--text3); font-family:var(--mono); }
+.notes-textarea {
+  width:100%; min-height:140px; padding:14px 16px;
+  font-family:var(--font); font-size:13px; line-height:1.7; color:var(--text);
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:8px; resize:vertical; outline:none;
+  transition:border-color .15s, box-shadow .15s;
+}
+.notes-textarea:focus { border-color:var(--blue-400); box-shadow:0 0 0 3px rgba(59,130,246,.12); background:var(--surface); }
+.notes-textarea::placeholder { color:var(--text4); }
+.notes-actions { display:flex; align-items:center; justify-content:space-between; margin-top:10px; flex-wrap:wrap; gap:8px; }
+.notes-save-btn {
+  padding:8px 20px; background:var(--blue-500); color:#fff;
+  border:none; border-radius:8px; font-size:12px; font-weight:700;
+  font-family:var(--font); cursor:pointer; transition:background .15s;
+}
+.notes-save-btn:hover { background:var(--blue-600); }
+.notes-save-btn:disabled { background:var(--text4); cursor:default; }
+.notes-copy-btn {
+  padding:8px 16px; background:var(--surface); color:var(--blue-600);
+  border:1px solid var(--blue-200,#BFDBFE); border-radius:8px; font-size:12px; font-weight:700;
+  font-family:var(--font); cursor:pointer; transition:all .15s;
+}
+.notes-copy-btn:hover { background:var(--blue-50); border-color:var(--blue-400); }
+.notes-status { font-size:11px; font-family:var(--mono); color:var(--text3); }
+.notes-status.saved { color:var(--positive); }
+.notes-status.saving { color:var(--neutral); }
+.notes-status.error { color:var(--negative); }
+.notes-display {
+  font-size:13px; line-height:1.75; color:var(--text2);
+  white-space:pre-wrap; padding:14px 16px;
+  background:var(--blue-50); border:1px solid var(--blue-100);
+  border-left:3px solid var(--blue-400);
+  border-radius:0 8px 8px 0; margin-bottom:12px;
+}
+.notes-display:empty { display:none; }
+
+/* RESPONSE RATE */
+.resp-rate-ring { position:relative; width:90px; height:90px; flex-shrink:0; }
+.resp-rate-ring svg { transform:rotate(-90deg); }
+.resp-rate-ring-label { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.resp-rate-pct { font-size:18px; font-weight:800; color:var(--blue-900); font-family:var(--mono); line-height:1; }
+.resp-rate-sub { font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+.resp-breakdown { flex:1; display:flex; flex-direction:column; gap:8px; }
+.resp-row { display:flex; align-items:center; gap:10px; }
+.resp-row-label { font-size:11px; color:var(--text2); width:90px; flex-shrink:0; }
+.resp-row-bar { flex:1; background:#F1F5F9; border-radius:3px; height:8px; }
+.resp-row-fill { height:100%; border-radius:3px; background:var(--blue-400); }
+.resp-row-val { font-size:11px; font-weight:700; font-family:var(--mono); color:var(--blue-900); width:32px; text-align:right; }
+.resp-row-pct { font-size:10px; color:var(--text3); font-family:var(--mono); width:36px; text-align:right; }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-logo">ORM · SMM</div>
+  <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+  <div class="loader-status" id="loader-status">Fetching data from Google Sheets…</div>
+  <div class="loader-error" id="loader-error"></div>
+</div>
+
+<nav class="topbar" id="topbar" style="display:none">
+  <div class="topbar-wordmark">ORM · SMM</div>
+  <div class="brand-tabs" id="brand-tabs"></div>
+  <div class="topbar-right">
+    <div class="data-badge" id="data-badge">—</div>
+    <div class="vs-badge">vs prev month</div>
+    <div class="month-selector">
+      <select id="month-select" onchange="changeMonth(this.value)"></select>
+      <span class="month-selector-icon">▾</span>
+    </div>
+    <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+  </div>
+</nav>
+
+<div id="page-overview" class="page"></div>
+<div id="page-brands"></div>
+
+<!-- DRILLDOWN MODAL -->
+<div class="overlay" id="overlay" onclick="closeOverlay(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="flex:1;min-width:0;">
+        <div id="modal-title" class="modal-title"></div>
+        <div class="bc" id="modal-bc" style="margin-top:6px;margin-bottom:0;"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+const SHEET_ID = '17JbGfXplM5Q7sY_NwjR_f1KTlA-Jne1lRYheV3lqzA8';
+const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+
+// ── Analyst Notes API ────────────────────────────────────────────────────
+// Paste your deployed Apps Script Web App URL here after setup.
+// Leave as '' to use localStorage fallback until the script is deployed.
+const NOTES_API_URL = 'https://script.google.com/macros/s/AKfycbzqGngs2izGTtTqdJ9mycbBiuRkHhStmtV69fS7UozVhhNQoolRUPwTy6-flGAizFr3Ow/exec';
+
+const BRAND_CONFIG = {
+  'IQ Option': { key:'iqoption',  color:'#5B8DEF', label:'IQ Option'  },
+  'Exnova':    { key:'exnova',    color:'#E8A84C', label:'Exnova'      },
+  'Casatrade': { key:'casatrade', color:'#E07A8A', label:'Casatrade'   },
+  'IQ Broker': { key:'iqbroker',  color:'#67B8CC', label:'IQ Broker'   },
+};
+
+const PLATFORM_ICONS = {
+  'X':'𝕏','YouTube':'▶','Instagram':'◈','Facebook':'𝔽','TikTok':'♪',
+  'Google Play':'▷','App Store':'','Reclame Aqui':'Ⓡ','Trustpilot':'★',
+  'Web':'🌐','Reddit':'◉','Other':'○'
+};
+const PLATFORM_COLORS = {
+  'X':'#93C5FD','YouTube':'#FFADAD','Instagram':'#F9A8D4','Facebook':'#93C5FD',
+  'TikTok':'#99F6E4','Google Play':'#86EFAC','App Store':'#93C5FD',
+  'Reclame Aqui':'#FDBA74','Trustpilot':'#6EE7B7','Web':'#CBD5E1',
+  'Reddit':'#FDBA74','Other':'#CBD5E1'
+};
+const SOCIAL_PLATS = ['X','YouTube','Instagram','Facebook','TikTok'];
+const EMOTIONS = ['Confused','Frustrated','Angry','Worried','Happy'];
+const EMO_COLORS = {Confused:'#93C5FD',Frustrated:'#FCD34D',Angry:'#FCA5A5',Worried:'#C4B5FD',Happy:'#6EE7B7'};
+const EMO_TEXT   = {Confused:'#1E40AF',Frustrated:'#78350F',Angry:'#7F1D1D',Worried:'#4C1D95',Happy:'#065F46'};
+const INTENT_COLORS = {complaint:'#FCA5A5',issue:'#FDE68A',question:'#93C5FD',enquiry:'#D8B4FE',feedback:'#6EE7B7',request:'#C4B5FD',none:'#E2E8F0'};
+const INTENT_NAMES  = {complaint:'Complaint',issue:'Issue Report',question:'Question',enquiry:'Enquiry',feedback:'Feedback',request:'Request',none:'Other'};
+const SENT_COLORS = {Positive:'#6EE7B7',Neutral:'#FDE68A',Negative:'#FCA5A5'};
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let ALL_ROWS = [];
+let AVAILABLE_MONTHS = [];
+let currentMonth = '';
+let currentBrand = 'overview';
+let chartInstances = {};
+
+// ═══════════════════════════════════════════════════════════
+//  FETCH & PARSE
+// ═══════════════════════════════════════════════════════════
+function loaderMsg(t){ document.getElementById('loader-status').textContent = t; }
+
+async function fetchData(){
+  loaderMsg('Fetching data from Google Sheets…');
+  const urls = [
+    CSV_URL,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(CSV_URL)}`,
+    `https://corsproxy.io/?${encodeURIComponent(CSV_URL)}`
+  ];
+  let csv = null;
+  for(const u of urls){
+    try{
+      const r = await fetch(u, {cache:'no-store'});
+      if(r.ok){ csv = await r.text(); break; }
+    }catch(e){}
+  }
+  if(!csv) throw new Error('Could not fetch the sheet. Ensure it is shared as "Anyone with the link can view".');
+  loaderMsg('Parsing…');
+  return parseCSV(csv);
+}
+
+function parseCSV(text){
+  // ── RFC-4180 compliant tokeniser ──────────────────────────────────
+  // Handles quoted fields that contain embedded newlines, commas, quotes.
+  // Returns array of row-arrays.
+  function tokenise(raw){
+    const rows=[], ROW=[], CRLF=/\r\n|\r|\n/;
+    let cur='', inQ=false, i=0;
+    // Normalise BOM
+    if(raw.charCodeAt(0)===0xFEFF) raw=raw.slice(1);
+    while(i<raw.length){
+      const c=raw[i];
+      if(inQ){
+        if(c==='"'){
+          if(raw[i+1]==='"'){ cur+='"'; i+=2; continue; } // escaped quote
+          inQ=false; i++; continue;
+        }
+        cur+=c; i++; continue;
+      }
+      if(c==='"'){ inQ=true; i++; continue; }
+      if(c===','){ ROW.push(cur); cur=''; i++; continue; }
+      if(c==='\r'||c==='\n'){
+        ROW.push(cur); cur='';
+        rows.push([...ROW]); ROW.length=0;
+        if(c==='\r'&&raw[i+1]==='\n') i++;
+        i++; continue;
+      }
+      cur+=c; i++;
+    }
+    // last field / row
+    ROW.push(cur);
+    if(ROW.some(v=>v!='')) rows.push([...ROW]);
+    return rows;
+  }
+
+  const allRows = tokenise(text);
+  if(!allRows.length) return [];
+
+  const headers = allRows[0].map(h=>h.trim());
+  const ci={};
+  headers.forEach((h,i)=>{ ci[h]=i; });
+  console.log('CSV headers detected:', headers);
+
+  // Tag column: try both space and underscore variants
+  const tagColKey = ['Topic Tag','Topic_Tag','topic tag','topic_tag']
+    .find(k=>ci[k]!==undefined) || 'Topic Tag';
+  console.log('Tag column key:', tagColKey, '→ index', ci[tagColKey]);
+  const fixedColKey = ['Fixed','fixed'].find(k=>ci[k]!==undefined);
+  console.log('Fixed column key:', fixedColKey, '→ index', ci[fixedColKey]);
+
+  const rows=[];
+  for(let i=1;i<allRows.length;i++){
+    const cols=allRows[i];
+    if(!cols||cols.length<2) continue;
+    const brand=(cols[ci['Brand']]||'').trim();
+    if(!brand||!BRAND_CONFIG[brand]) continue;
+
+    const dateRaw=(cols[ci['Date']]||'').trim();
+    const monthKey=parseMonthKey(dateRaw);
+    if(!monthKey) continue;
+
+    const tagRaw=(cols[ci[tagColKey]]||'').trim();
+    const emotionRaw=(cols[ci['Emotion']]||'').trim();
+    const intentionRaw=(cols[ci['Intention']]||'').trim();
+    const platformRaw=(cols[ci['Platform']]||'').trim();
+    const sentimentRaw=(cols[ci['Sentiment']]||'').trim();
+    const contentRaw=(cols[ci['Content']]||'').trim();
+    const linkRaw=(cols[ci['Link']]||'').trim();
+    const typeRaw=(cols[ci['Type']]||'').trim();
+
+    const fixedRaw    = fixedColKey ? (cols[ci[fixedColKey]]||'').trim() : '';
+    // isReply: "is reply? = Yes" means this row is a repliable mention (ORM can/did respond)
+    const isReplyColKey = ['is reply? ','is reply?','is_reply','isreply']
+      .find(k=>ci[k]!==undefined);
+    const isReplyRaw  = isReplyColKey ? (cols[ci[isReplyColKey]]||'').trim().toLowerCase() : '';
+    rows.push({
+      brand,
+      monthKey,
+      dateRaw,
+      type: typeRaw,
+      platform: normalizePlatform(platformRaw),
+      sentiment: normalizeSentiment(sentimentRaw),
+      tag: tagRaw.toLowerCase(),
+      tagRaw: tagRaw,
+      emotion: normalizeEmotion(emotionRaw),
+      intention: normalizeIntention(intentionRaw),
+      content: contentRaw.slice(0,500),
+      link: linkRaw,
+      fixed:   fixedRaw.toLowerCase() === 'fixed',
+      isReply: isReplyRaw === 'yes',  // true = repliable/responded post
+    });
+  }
+  console.log(`Parsed ${rows.length} valid rows from ${allRows.length-1} data rows`);
+  return rows;
+}
+
+// FIX: Correctly handle DD/MM/YYYY (European/Brazilian) format
+// Logic: if first number > 12 → definitely day first (DD/MM/YYYY)
+//        if second number > 12 → definitely month first (MM/DD/YYYY)  
+//        otherwise → default to DD/MM/YYYY (Brazilian convention)
+function parseMonthKey(dateRaw){
+  if(!dateRaw) return null;
+  // Try slash format: could be DD/MM/YYYY or MM/DD/YYYY
+  const slash = dateRaw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(slash){
+    const a=parseInt(slash[1]), b=parseInt(slash[2]), y=parseInt(slash[3]);
+    let month, day;
+    if(a>12){ day=a; month=b; }       // first number is day (e.g. 19/03 → Mar)
+    else if(b>12){ month=a; day=b; }  // second number is day (e.g. 03/19 → Mar)
+    else { day=a; month=b; }          // ambiguous → assume DD/MM (Brazilian/European)
+    if(month<1||month>12) return null;
+    return `${y}-${String(month).padStart(2,'0')}`;
+  }
+  // Try ISO: YYYY-MM-DD
+  const dash = dateRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(dash) return `${dash[1]}-${dash[2]}`;
+  return null;
+}
+
+function normalizePlatform(p){
+  const l=p.toLowerCase().trim();
+  const map={
+    'x':'X','twitter/x':'X','twitter':'X',
+    'youtube':'YouTube','instagram':'Instagram','facebook':'Facebook','tiktok':'TikTok',
+    'google play':'Google Play','playstore':'Google Play','play store':'Google Play',
+    'app store':'App Store','appstore':'App Store',
+    'reclame aqui':'Reclame Aqui','reclameaqui':'Reclame Aqui',
+    'trustpilot':'Trustpilot','web':'Web','reddit':'Reddit',
+  };
+  return map[l]||p||'Other';
+}
+function normalizeSentiment(s){
+  const l=s.toLowerCase();
+  if(l==='positive') return 'Positive';
+  if(l==='negative') return 'Negative';
+  return 'Neutral';
+}
+function normalizeEmotion(e){
+  const l=e.toLowerCase();
+  if(l.includes('happy')) return 'Happy';
+  if(l.includes('frustrated')) return 'Frustrated';
+  if(l.includes('angry')||l.includes('anger')) return 'Angry';
+  if(l.includes('confused')||l.includes('confusion')) return 'Confused';
+  if(l.includes('worried')||l.includes('worry')) return 'Worried';
+  return 'No_emotion';
+}
+function normalizeIntention(i){
+  const l=i.toLowerCase();
+  if(l.includes('complaint')) return 'complaint';
+  if(l.includes('issue')) return 'issue';
+  if(l.includes('feedback')) return 'feedback';
+  if(l.includes('request')) return 'request';
+  if(l.includes('question')) return 'question';
+  if(l.includes('enquiry')||l.includes('inquiry')) return 'enquiry';
+  return 'none';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AGGREGATION HELPERS
+// ═══════════════════════════════════════════════════════════
+function getRows(brand, month){
+  return ALL_ROWS.filter(r=>
+    (brand==='all'||r.brand===brand) &&
+    (month==='all'||r.monthKey===month)
+  );
+}
+function aggSentiment(rows){
+  const r={Positive:0,Neutral:0,Negative:0};
+  rows.forEach(r2=>r[r2.sentiment]=(r[r2.sentiment]||0)+1);
+  return r;
+}
+function aggPlatforms(rows){
+  const r={};
+  rows.forEach(r2=>r[r2.platform]=(r[r2.platform]||0)+1);
+  return r;
+}
+function aggTags(rows){
+  const r={};
+  rows.forEach(r2=>{
+    if(r2.tag&&r2.tag!=='none'&&r2.tag!==''){
+      r[r2.tag]=(r[r2.tag]||0)+1;
+    }
+  });
+  return r;
+}
+function aggIntentions(rows){
+  const r={complaint:0,issue:0,question:0,enquiry:0,feedback:0,request:0,none:0};
+  rows.forEach(r2=>r[r2.intention]=(r[r2.intention]||0)+1);
+  return r;
+}
+function aggFixed(rows){
+  // Denominator: rows where isReply=true (repliable original posts)
+  // Numerator:   rows where fixed=true (ORM has replied)
+  const repliable = rows.filter(r=>r.isReply===true).length;
+  const responded = rows.filter(r=>r.fixed).length;
+  const rate = repliable>0 ? Math.min(((responded/repliable)*100),100).toFixed(1) : '0.0';
+  const rateExact = repliable>0 ? ((responded/repliable)*100).toFixed(1) : '0.0';
+  return { responded, repliable, rate, rateExact };
+}
+
+function aggFixedByPlatform(rows){
+  // Group both repliable and responded rows by platform
+  const plats = {};
+  rows.forEach(r=>{
+    if(!plats[r.platform]) plats[r.platform]={responded:0,repliable:0};
+    if(r.fixed)          plats[r.platform].responded++;
+    if(r.isReply===true) plats[r.platform].repliable++;
+  });
+  return plats;
+}
+
+function aggEmotions(rows){
+  const r={};
+  EMOTIONS.forEach(e=>r[e]=0);
+  rows.forEach(r2=>{ if(r2.emotion!=='No_emotion') r[r2.emotion]=(r[r2.emotion]||0)+1; });
+  return r;
+}
+function aggEmotionByPlatform(rows){
+  const plats=[...new Set(rows.map(r=>r.platform))];
+  const result={};
+  plats.forEach(p=>{
+    result[p]={};
+    EMOTIONS.forEach(e=>result[p][e]=0);
+  });
+  rows.forEach(r=>{
+    if(result[r.platform]&&r.emotion!=='No_emotion')
+      result[r.platform][r.emotion]=(result[r.platform][r.emotion]||0)+1;
+  });
+  return result;
+}
+function prevMonthKey(mk){
+  const [y,m]=mk.split('-').map(Number);
+  const pm=m===1?12:m-1, py=m===1?y-1:y;
+  return `${py}-${String(pm).padStart(2,'0')}`;
+}
+function monthLabel(mk){
+  const [y,m]=mk.split('-').map(Number);
+  return `${'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')[m-1]} ${y}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════════════
+function destroyChart(id){
+  if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}
+}
+function makeDonut(id, labels, vals, colors){
+  destroyChart(id);
+  const ctx=document.getElementById(id);
+  if(!ctx) return;
+  const total=vals.reduce((a,b)=>a+b,0);
+  chartInstances[id]=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:vals,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw} (${total?((c.raw/total)*100).toFixed(1):0}%)`}}
+      }
+    }
+  });
+}
+function makeTagBar(id, labels, curr, prev, color){
+  destroyChart(id);
+  const ctx=document.getElementById(id);
+  if(!ctx) return;
+  chartInstances[id]=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {type:'bar',label:'Current Month',data:curr,backgroundColor:color+'AA',borderRadius:4,borderSkipped:false,order:2},
+        {type:'line',label:'Prev Month',data:prev,borderColor:'#CBD5E1',backgroundColor:'transparent',pointBackgroundColor:'#CBD5E1',pointRadius:3,borderWidth:2,borderDash:[4,3],tension:.3,order:1}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{color:'#4A5C7A',font:{family:'Plus Jakarta Sans',size:11},padding:14,boxWidth:10}},
+        tooltip:{mode:'index',intersect:false}
+      },
+      scales:{
+        x:{ticks:{color:'#8A9BBC',font:{family:'IBM Plex Mono',size:10}},grid:{display:false}},
+        y:{ticks:{color:'#B8C8DC',font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(10,31,68,.04)'}}
+      }
+    }
+  });
+}
+function makeIntentChart(id, curr, prev, total, prevTotal){
+  destroyChart(id);
+  const ctx=document.getElementById(id);
+  if(!ctx) return;
+  const keys=['complaint','issue','question','enquiry','feedback','request'];
+  const pct=(obj,k,t)=>t>0?Math.round((obj[k]||0)/t*100):0;
+  chartInstances[id]=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:['Current Month','Prev Month'],
+      datasets:keys.map(k=>({
+        label:INTENT_NAMES[k],data:[pct(curr,k,total),pct(prev,k,prevTotal)],
+        backgroundColor:INTENT_COLORS[k],borderRadius:3,borderSkipped:false,
+      }))
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'right',labels:{color:'#4A5C7A',font:{family:'Plus Jakarta Sans',size:11},padding:10,boxWidth:10}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}%`}}
+      },
+      scales:{
+        x:{stacked:true,ticks:{color:'#8A9BBC',font:{size:11}},grid:{display:false}},
+        y:{stacked:true,max:100,ticks:{color:'#B8C8DC',font:{family:'IBM Plex Mono',size:10},callback:v=>v+'%'},grid:{color:'rgba(10,31,68,.05)'}}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMPONENT RENDERERS
+// ═══════════════════════════════════════════════════════════
+function renderKPIs(el, sc, sp, rows, prevRows){
+  const ct=sc.Positive+sc.Neutral+sc.Negative;
+  const pt=sp.Positive+sp.Neutral+sp.Negative;
+  const diff=ct-pt;
+  const dpct=pt>0?((diff/pt)*100).toFixed(1):'0.0';
+  const negDiff=pt>0?(((sc.Negative/ct||0)-(sp.Negative/pt||0))*100).toFixed(1):'0.0';
+  const posDiff=pt>0?(((sc.Positive/ct||0)-(sp.Positive/pt||0))*100).toFixed(1):'0.0';
+  // Response rate KPI — denominator: isReply=true (repliable posts)
+  const respCurr      = rows     ? rows.filter(r=>r.fixed).length          : 0;
+  const respPrev      = prevRows ? prevRows.filter(r=>r.fixed).length       : 0;
+  const repliableCurr = rows     ? rows.filter(r=>r.isReply===true).length  : 0;
+  const respRate = repliableCurr>0
+    ? Math.min(((respCurr/repliableCurr)*100),100).toFixed(1) : '0.0';
+  const respDiff = respCurr - respPrev;
+  const respDpct = respPrev>0 ? ((respDiff/respPrev)*100).toFixed(1) : '0.0';
+  const kpis=[
+    {label:'Total Mentions',val:ct,delta:Math.abs(dpct)+'%',cls:diff>=0?'up':'dn',arrow:diff>=0?'▲':'▼',color:'#BFDBFE'},
+    {label:'Negative',val:sc.Negative,delta:Math.abs(negDiff)+'pp',cls:parseFloat(negDiff)>0?'dn':'up',arrow:parseFloat(negDiff)>0?'▲':'▼',color:'#FCA5A5'},
+    {label:'Positive',val:sc.Positive,delta:Math.abs(posDiff)+'pp',cls:parseFloat(posDiff)>0?'up':'dn',arrow:parseFloat(posDiff)>0?'▲':'▼',color:'#6EE7B7'},
+    {label:'Neutral',val:sc.Neutral,delta:'—',cls:'nt',arrow:'–',color:'#FDE68A'},
+    {label:'ORM Responded',val:respCurr,delta:Math.abs(respDpct)+'%',cls:respDiff>=0?'up':'dn',arrow:respDiff>=0?'▲':'▼',color:'#A5F3FC',
+      sub:`${respRate}% of repliable`},
+  ];
+  el.className='kpi-row kpi-row-5';
+  el.innerHTML=kpis.map(k=>`<div class="kpi-card">
+    <div class="kpi-card-top-accent" style="background:${k.color}"></div>
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-value">${k.val.toLocaleString()}</div>
+    <div class="kpi-footer"><span class="kpi-delta ${k.cls}">${k.arrow} ${k.delta}</span><span class="kpi-vs">${k.sub||'vs prev month'}</span></div>
+  </div>`).join('');
+}
+
+function renderSentimentStats(el, sc, sp){
+  const ct=sc.Positive+sc.Neutral+sc.Negative;
+  const pt=sp.Positive+sp.Neutral+sp.Negative;
+  const items=[
+    {label:'Positive',val:sc.Positive,prev:sp.Positive,color:'#6EE7B7'},
+    {label:'Neutral', val:sc.Neutral, prev:sp.Neutral, color:'#FDE68A'},
+    {label:'Negative',val:sc.Negative,prev:sp.Negative,color:'#FCA5A5'},
+  ];
+  el.innerHTML=items.map(it=>{
+    const pct=ct>0?((it.val/ct)*100).toFixed(1):'0.0';
+    const ppct=pt>0?((it.prev/pt)*100).toFixed(1):'0.0';
+    const d=(parseFloat(pct)-parseFloat(ppct)).toFixed(1);
+    const cls=parseFloat(d)>0?(it.label==='Negative'?'dn':'up'):(it.label==='Negative'?'up':'dn');
+    return `<div class="sent-stat-row">
+      <span class="sent-dot" style="background:${it.color}"></span>
+      <span class="sent-label">${it.label}</span>
+      <div class="sent-bar-track"><div class="sent-bar-fill" style="width:${pct}%;background:${it.color}"></div></div>
+      <span class="sent-pct">${pct}%</span>
+      <span class="sent-count">${it.val.toLocaleString()}</span>
+      <span class="kpi-delta ${cls}" style="font-size:10px;padding:1px 6px;">${parseFloat(d)>0?'▲':'▼'}${Math.abs(d)}%</span>
+    </div>`;
+  }).join('');
+}
+
+function renderIntentList(el, ints, total){
+  const sorted=Object.entries(ints).filter(([k,v])=>k!=='none'&&v>0).sort((a,b)=>b[1]-a[1]);
+  el.innerHTML=sorted.map(([k,v])=>{
+    const pct=total>0?((v/total)*100).toFixed(1):'0';
+    return `<div class="intent-row">
+      <span class="intent-label">${INTENT_NAMES[k]||k}</span>
+      <div class="intent-bar-track"><div class="intent-bar-fill" style="width:${pct}%;background:${INTENT_COLORS[k]||'#E2E8F0'}">${pct}%</div></div>
+      <span class="intent-pct">${pct}%</span>
+      <span class="intent-count">${v}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderPlatformList(el, plats, prevPlats, max, brandKey, filter){
+  const sorted=Object.entries(plats).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){el.innerHTML='<div class="empty-state">No data</div>';return;}
+  const total=Object.values(plats).reduce((a,b)=>a+b,0);
+  el.innerHTML=sorted.map(([name,count])=>{
+    const pct=total>0?((count/total)*100).toFixed(1):'0';
+    const w=max>0?((count/max)*100).toFixed(0):0;
+    const prev=prevPlats[name]||0;
+    const diff=count-prev;
+    const dpct=prev>0?((diff/prev)*100).toFixed(1):'new';
+    const cls=diff>=0?'up':'dn';
+    const str=diff>=0?`▲${dpct}%`:`▼${Math.abs(dpct)}%`;
+    return `<div class="platform-row" onclick="startDrill('${escQ(brandKey)}',[{label:'${escQ(name)}',fn:r=>r.platform==='${escQ(name)}'}])">
+      <span class="platform-icon">${PLATFORM_ICONS[name]||'•'}</span>
+      <span class="platform-name">${name}</span>
+      <div class="platform-bar-track"><div class="platform-bar-fill" style="width:${w}%;background:${PLATFORM_COLORS[name]||'#6B7280'}"></div></div>
+      <span class="platform-count">${count.toLocaleString()}</span>
+      <span class="platform-pct">${pct}%</span>
+      <span class="platform-delta ${cls}">${str}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTagsSection(el, tags, brandKey){
+  // Render tags as clickable rows (no chart needed here — supplement to bar chart)
+  const sorted=Object.entries(tags).sort((a,b)=>b[1]-a[1]).slice(0,20);
+  const max=sorted[0]?sorted[0][1]:1;
+  const total=Object.values(tags).reduce((a,b)=>a+b,0);
+  el.innerHTML=sorted.map(([tag,count])=>{
+    const pct=total>0?((count/total)*100).toFixed(1):'0';
+    const w=((count/max)*100).toFixed(0);
+    return `<div class="platform-row" onclick="startDrill('${escQ(brandKey)}',[{label:'${escQ(tag)}',fn:r=>r.tag==='${escQ(tag)}'}])">
+      <span class="platform-name" style="width:140px;font-weight:500;">${tag}</span>
+      <div class="platform-bar-track"><div class="platform-bar-fill" style="width:${w}%;background:${BRAND_CONFIG[Object.keys(BRAND_CONFIG).find(k=>BRAND_CONFIG[k].key===brandKey)]?.color||'#5B8DEF'}88"></div></div>
+      <span class="platform-count">${count.toLocaleString()}</span>
+      <span class="platform-pct">${pct}%</span>
+      <span class="drill-arrow">›</span>
+    </div>`;
+  }).join('');
+}
+
+function renderResponseRate(el, rows, brandKey){
+  const {responded, repliable, rate, rateExact} = aggFixed(rows);
+  const byPlat  = aggFixedByPlatform(rows);
+  const platRows = Object.entries(byPlat)
+    .filter(([p,v])=>v.responded>0 || v.repliable>0)
+    .sort((a,b)=>b[1].repliable-a[1].repliable);
+  const maxRep = platRows[0] ? platRows[0][1].repliable : 1;
+
+  // SVG ring — capped at 100% visually even if rateExact > 100
+  const R=36, cx=45, cy=45, circ=2*Math.PI*R;
+  const dash = (Math.min(parseFloat(rate),100)/100)*circ;
+  const ringColor = parseFloat(rate)>=75 ? '#059669' : parseFloat(rate)>=40 ? '#D97706' : '#DC2626';
+
+  el.innerHTML = `
+    <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="flex-shrink:0;">
+        <div class="resp-rate-ring">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#F1F5F9" stroke-width="8"/>
+            <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${ringColor}" stroke-width="8"
+              stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
+              stroke-linecap="round"/>
+          </svg>
+          <div class="resp-rate-ring-label">
+            <span class="resp-rate-pct" style="color:${ringColor}">${rate}%</span>
+            <span class="resp-rate-sub">replied</span>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-size:11px;color:var(--text3);font-family:var(--mono);">
+          ${responded} of ${repliable}
+        </div>
+      </div>
+      <div class="resp-breakdown" style="min-width:220px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">By Platform</div>
+        ${platRows.length ? platRows.map(([p,v])=>{
+          const pct = v.repliable>0 ? Math.min(Math.round((v.responded/v.repliable)*100),100) : 0;
+          const w   = maxRep>0 ? ((v.repliable/maxRep)*100).toFixed(0) : 0;
+          return `<div class="resp-row">
+            <span class="resp-row-label">${PLATFORM_ICONS[p]||'•'} ${p}</span>
+            <div class="resp-row-bar">
+              <div class="resp-row-fill" style="width:${w}%;background:#E2E8F0;position:relative;">
+                <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${ringColor};border-radius:3px;"></div>
+              </div>
+            </div>
+            <span class="resp-row-val">${v.responded}<span style="font-size:9px;color:var(--text4);">/${v.repliable}</span></span>
+            <span class="resp-row-pct" style="color:${ringColor};font-weight:700;">${pct}%</span>
+          </div>`;
+        }).join('') : '<div style="font-size:12px;color:var(--text3);">No repliable mentions</div>'}
+      </div>
+    </div>
+    <div class="summary-box" style="margin-top:14px;">
+      ORM responded to <strong>${responded}</strong> of <strong>${repliable}</strong> repliable mentions
+      (<strong>${rate}%</strong> response rate).
+      ${platRows[0]?`Highest volume on <strong>${platRows[0][0]}</strong>: ${platRows[0][1].responded} replied of ${platRows[0][1].repliable}.`:''}
+    </div>`;
+}
+
+function renderHeatmap(tableEl, rows, brandKey){
+  const plats=[...new Set(rows.map(r=>r.platform))].filter(p=>rows.filter(r=>r.platform===p).length>=2);
+  if(!plats.length){tableEl.innerHTML='<tr><td class="empty-state">No heatmap data</td></tr>';return;}
+  const emo=aggEmotionByPlatform(rows);
+  const totals={};
+  plats.forEach(p=>{ totals[p]=EMOTIONS.reduce((s,e)=>s+(emo[p][e]||0),0); });
+  let html='<thead><tr><th style="width:120px;"></th>';
+  EMOTIONS.forEach(e=>html+=`<th class="hm-emotion-header" style="color:${EMO_TEXT[e]}">${e}</th>`);
+  html+='</tr></thead><tbody>';
+  plats.forEach(p=>{
+    const vals=EMOTIONS.map(e=>emo[p]?emo[p][e]||0:0);
+    const rowTotal=totals[p]||1;
+    const maxV=Math.max(...vals,1);
+    html+=`<tr><td class="hm-platform-label">${p}</td>`;
+    vals.forEach((v,i)=>{
+      const e=EMOTIONS[i];
+      const intensity=0.12+(v/maxV)*0.78;
+      const pct=rowTotal>0?((v/rowTotal)*100).toFixed(0):0;
+      const bk=brandKey||'_all_';
+      html+=`<td class="hm-cell" style="background:${EMO_COLORS[e]};opacity:${intensity.toFixed(2)};"
+        title="${p} · ${e}: ${v} mentions — click to explore"
+        onclick="startDrill('${bk}',[{label:'${p}',fn:r=>r.platform==='${p}'},{label:'(topic)',fn:r=>true},{label:'${e}',fn:r=>r.emotion==='${e}'}])">
+        <span class="hm-cell-val">${v}</span>
+        <span class="hm-cell-pct">${pct}%</span>
+      </td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody>';
+  tableEl.innerHTML=html;
+}
+
+function renderInsights(el, rows, prevRows, bname){
+  const total=rows.length;
+  if(!total){el.innerHTML='<div class="empty-state">No data for this period</div>';return;}
+  const sc=aggSentiment(rows);
+  const tags=aggTags(rows);
+  const ints=aggIntentions(rows);
+  const negPct=((sc.Negative/total)*100).toFixed(1);
+  const compPct=(((ints.complaint||0)+(ints.issue||0))/total*100).toFixed(1);
+  const topTags=Object.entries(tags).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const wdRows=rows.filter(r=>r.tag.includes('withdrawal'));
+  const kycRows=rows.filter(r=>r.tag.includes('kyc'));
+  const ins=[];
+  if(parseFloat(negPct)>40) ins.push({type:'crit',badge:'High Negative Sentiment',title:`${negPct}% of mentions are Negative`,desc:`More than 40% of ${bname} interactions in this period are classified as negative. Top negative topics: ${topTags.slice(0,2).map(t=>t[0]).join(', ')}.`});
+  else if(parseFloat(negPct)>25) ins.push({type:'warn',badge:'Elevated Negative Sentiment',title:`Negative sentiment at ${negPct}%`,desc:`${bname} has a notable share of negative mentions. Key topics: ${topTags.slice(0,2).map(t=>t[0]).join(', ')}.`});
+  if(wdRows.length){
+    const wNeg=wdRows.filter(r=>r.sentiment==='Negative').length;
+    ins.push({type:wNeg/wdRows.length>0.6?'crit':'warn',badge:`Withdrawal · ${wdRows.length} mentions`,title:'Withdrawal Complaints Present',desc:`${wdRows.length} mentions tagged withdrawal — ${((wNeg/wdRows.length)*100).toFixed(0)}% negative. Frustrated/Angry are dominant emotions.`});
+  }
+  if(kycRows.length) ins.push({type:'info',badge:`KYC / Verification · ${kycRows.length} mentions`,title:'KYC Verification Mentions',desc:`${kycRows.length} mentions relate to KYC or verification. ${((kycRows.filter(r=>r.emotion==='Confused').length/kycRows.length)*100).toFixed(0)}% carry a Confused emotion.`});
+  if(parseFloat(compPct)<20) ins.push({type:'good',badge:'Low Complaint Rate',title:`${compPct}% Complaints + Issues`,desc:`Complaint and Issue Report together represent ${compPct}% of interactions — relatively low for the category.`});
+  if(topTags[0]) ins.push({type:'info',badge:'Top Topics',title:`#1 Tag: "${topTags[0][0]}" — ${topTags[0][1]} mentions`,desc:`Top topics: ${topTags.map(t=>`${t[0]} (${t[1]})`).join(', ')}. These represent ${((topTags.reduce((s,t)=>s+t[1],0)/total)*100).toFixed(0)}% of classified mentions.`});
+  el.innerHTML=ins.map(it=>`<div class="insight-item ${it.type}">
+    <span class="insight-badge ${it.type}">${it.badge}</span>
+    <div class="insight-title">${it.title}</div>
+    <div class="insight-desc">${it.desc}</div>
+  </div>`).join('')||'<div class="empty-state">No notable insights for this period.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DRILLDOWN — Platform → Topic Tag → Sentiment → Mentions
+//  Clean pushDrill / jumpTo hierarchy (no object literals in onclick)
+// ═══════════════════════════════════════════════════════════
+
+// drillPath = [{label, fn}]  fn is a row filter function
+let drillPath = [];
+let drillBaseRows = [];
+let _drillFrames = {};
+let _drillFrameId = 0;
+
+// ── Entry points ──────────────────────────────────────────
+// startDrill(brandKey, initialSteps)
+//   brandKey  — the brand whose rows to use (or null for current brand)
+//   initialSteps — optional array of {label, fn} to pre-filter (e.g. start at tag level)
+function startDrill(brandKey, initialSteps){
+  const bname = (!brandKey || brandKey==='_all_')
+    ? 'all'
+    : Object.keys(BRAND_CONFIG).find(k=>BRAND_CONFIG[k].key===brandKey)||'all';
+  drillBaseRows = getRows(bname==='all'?'all':bname, currentMonth);
+  drillPath = initialSteps ? [...initialSteps] : [];
+  renderDrillLevel();
+  document.getElementById('overlay').classList.add('open');
+}
+
+// ── Path manipulation ────────────────────────────────────
+function pushDrill(label, filterFn){
+  drillPath.push({label, fn: filterFn});
+  renderDrillLevel();
+}
+// Called from onclick — key stored in _drillFrames to avoid closure issues
+function pushDrillByKey(field, stepId){
+  const key = _drillFrames[stepId];
+  if(key===undefined) return;
+  pushDrill(String(key), r=>(r[field]||'Unknown')===key);
+}
+function jumpTo(idx){
+  drillPath = drillPath.slice(0, idx+1);
+  renderDrillLevel();
+}
+function jumpToRoot(){
+  drillPath = [];
+  renderDrillLevel();
+}
+
+// ── Get filtered rows by replaying drillPath ─────────────
+function getDrillRows(){
+  let rows = drillBaseRows;
+  drillPath.forEach(step=>{ rows = rows.filter(step.fn); });
+  return rows;
+}
+
+// ── Main render ──────────────────────────────────────────
+// Hierarchy levels: 0=Platform, 1=Topic Tag, 2=Sentiment, 3=Mentions
+// If drillPath already has N entries, we're at level N
+function renderDrillLevel(){
+  const level = drillPath.length;
+  const rows  = getDrillRows();
+
+  // Breadcrumb
+  const bcEl    = document.getElementById('modal-bc');
+  const titleEl = document.getElementById('modal-title');
+  titleEl.textContent = drillPath.length ? drillPath[drillPath.length-1].label : 'Explore Mentions';
+  let bcHtml = '<span class="bc-item" onclick="jumpToRoot()" style="cursor:pointer">All</span>';
+  drillPath.forEach((step,i)=>{
+    const isLast = i===drillPath.length-1;
+    bcHtml += '<span class="bc-sep">›</span>';
+    bcHtml += `<span class="bc-item ${isLast?'cur':''}" ${isLast?'':'onclick="jumpTo('+i+')\"'}>${step.label}</span>`;
+  });
+  bcEl.innerHTML = bcHtml;
+
+  const body = document.getElementById('modal-body');
+  let html = '<div class="modal-content">';
+
+  if(level < 1){
+    // Level 0: Platform
+    html += renderDrillGroup(rows, 'platform', PLATFORM_COLORS, 'Platform');
+  } else if(level < 2){
+    // Level 1: Topic Tag
+    html += renderDrillGroup(rows, 'tag', {}, 'Topic Tag');
+  } else if(level < 3){
+    // Level 2: Sentiment
+    const sCols  = {Positive:'#6EE7B7', Negative:'#FCA5A5', Neutral:'#FDE68A'};
+    const sTCols = {Positive:'#065F46', Negative:'#991B1B', Neutral:'#92400E'};
+    html += renderDrillGroup(rows, 'sentiment', sCols, 'Sentiment', sTCols);
+  } else {
+    // Level 3: Mentions
+    const drillStoreId = 'drill_' + (++_drillFrameId);
+    html += renderMentionCards(rows, drillStoreId);
+  }
+  html += '</div>'; // close modal-content
+  body.innerHTML = html;
+  body.scrollTop = 0;
+}
+
+// ── Generic group renderer ───────────────────────────────
+function renderDrillGroup(rows, field, colorMap, sectionLabel, textColorMap){
+  const groups = {};
+  rows.forEach(r=>{
+    const k = (r[field]||'Unknown');
+    if(!groups[k]) groups[k]=[];
+    groups[k].push(r);
+  });
+  const sorted = Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
+  const max = sorted[0] ? sorted[0][1].length : 1;
+
+  let h = `<div class="modal-section-label">By ${sectionLabel}</div>`;
+  h += sorted.map(([key, grpRows])=>{
+    const cnt = grpRows.length;
+    const pct = rows.length>0 ? ((cnt/rows.length)*100).toFixed(0) : 0;
+    const w   = ((cnt/max)*100).toFixed(0);
+    const col  = colorMap[key]  || 'var(--blue-300)';
+    const tCol = textColorMap   ? (textColorMap[key]||'var(--text)') : 'var(--text)';
+    const icon = field==='platform' ? (PLATFORM_ICONS[key]||'•')+' ' : '';
+    const stepId = ++_drillFrameId;
+    _drillFrames[stepId] = key;
+    return `<div class="drill-row" onclick="pushDrillByKey('${field}',${stepId})">
+      <span class="drill-dot" style="background:${col};flex-shrink:0"></span>
+      <span class="drill-name" style="color:${tCol}">${icon}${key}</span>
+      <div class="drill-bar-track"><div class="drill-bar-fill" style="width:${w}%;background:${col}"></div></div>
+      <span class="drill-count" style="color:${tCol}">${cnt}</span>
+      <span class="drill-pct">${pct}%</span>
+      <span class="drill-arrow">›</span>
+    </div>`;
+  }).join('');
+  return h;
+}
+
+// ── Show mentions from snapshot ───────────────────────────
+function showMentions(snapId){
+  const rows = _drillFrames[snapId];
+  if(!Array.isArray(rows)) return;
+  const storeId = 'snap_' + snapId;
+  const _showBody = document.getElementById('modal-body');
+  _showBody.innerHTML = '<div class="modal-content">' + renderMentionCards(rows, storeId) + '</div>';
+  _showBody.scrollTop = 0;
+  const bcEl = document.getElementById('modal-bc');
+  bcEl.innerHTML += '<span class="bc-sep">›</span><span class="bc-item cur">Mentions</span>';
+  document.getElementById('modal-title').textContent = rows.length.toLocaleString()+' Mentions';
+}
+
+
+// ── Mention cards renderer (used by showMentions and drill level 3) ──────────
+function renderMentionCards(rows, containerId){
+  // Paginated mention renderer — loads PAGE_SIZE at a time, "Load more" button
+  const PAGE_SIZE = 50;
+  if(!rows||!rows.length) return '<div class="empty-state">No mentions match this filter.</div>';
+  const sorted = [...rows].sort((a,b)=>b.dateRaw.localeCompare(a.dateRaw));
+
+  // Store the full sorted list keyed by containerId for load-more
+  const storeId = containerId || ('mc_' + (++_drillFrameId));
+  _drillFrames['rows_' + storeId] = sorted;
+  _drillFrames['page_' + storeId] = 1;
+
+  return buildMentionPage(storeId, sorted, 1, PAGE_SIZE);
+}
+
+function buildMentionPage(storeId, sorted, page, pageSize){
+  const total   = sorted.length;
+  const showing = Math.min(page * pageSize, total);
+  const slice   = sorted.slice(0, showing);
+
+  let html = `<div style="font-size:11px;color:var(--text3);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border);">
+    <span>Showing <strong>${showing}</strong> of <strong>${total}</strong> mention${total!==1?'s':''}</span>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--text4);">most recent first</span>
+  </div>`;
+
+  html += slice.map(r => mentionCardHtml(r)).join('');
+
+  if(showing < total){
+    html += `<div style="text-align:center;padding:16px 0 4px;">
+      <button onclick="loadMoreMentions('${storeId}')"
+        style="font-size:12px;font-weight:700;color:var(--blue-600);
+               background:var(--blue-50);border:1px solid var(--blue-100);
+               border-radius:8px;padding:10px 28px;cursor:pointer;
+               font-family:var(--font);transition:all .15s;"
+        onmouseover="this.style.background='var(--blue-100)'"
+        onmouseout="this.style.background='var(--blue-50)'">
+        Load ${Math.min(pageSize, total-showing)} more
+        <span style="color:var(--text3);font-weight:400;">(${total-showing} remaining)</span>
+      </button>
+    </div>`;
+  } else if(total > pageSize){
+    html += `<div style="text-align:center;padding:12px 0 4px;font-size:11px;color:var(--text4);">All ${total} mentions loaded</div>`;
+  }
+
+  return html;
+}
+
+function loadMoreMentions(storeId){
+  const sorted  = _drillFrames['rows_' + storeId];
+  const page    = (_drillFrames['page_' + storeId] || 1) + 1;
+  const PAGE_SIZE = 50;
+  if(!sorted) return;
+  _drillFrames['page_' + storeId] = page;
+  // Replace modal-body content in place — keep scroll position
+  const body = document.getElementById('modal-body');
+  if(!body) return;
+  const scrollTop = body.scrollTop;
+  body.innerHTML = '<div class="modal-content">' + buildMentionPage(storeId, sorted, page, PAGE_SIZE) + '</div>';
+  body.scrollTop = scrollTop;
+}
+
+function mentionCardHtml(r){
+  const sCls = r.sentiment==='Positive'?'mpill-pos':r.sentiment==='Negative'?'mpill-neg':'mpill-neu';
+  const sLbl = r.sentiment==='Positive'?'✓ Positive':r.sentiment==='Negative'?'✗ Negative':'– Neutral';
+  const truncated = r.content&&r.content.length>300 ? r.content.slice(0,300)+'…' : (r.content||'No content');
+  return `<div class="mention-card">
+    <div class="mention-pills">
+      <span class="mpill ${sCls}">${sLbl}</span>
+      ${r.emotion&&r.emotion!=='No_emotion'?`<span class="mpill mpill-emo">${r.emotion}</span>`:''}
+      ${r.intention&&r.intention!=='none'?`<span class="mpill mpill-intent">${INTENT_NAMES[r.intention]||r.intention}</span>`:''}
+      ${r.tagRaw?`<span class="mpill mpill-tag">${r.tagRaw}</span>`:''}
+      ${r.platform?`<span class="mpill mpill-tag">${r.platform}</span>`:''}
+      ${r.fixed?'<span class="mpill" style="background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7;">✓ Replied</span>':''}
+    </div>
+    <div class="mention-text">"${truncated}"</div>
+    <div class="mention-src">
+      <span>📅 ${r.dateRaw||''}</span>
+      ${r.link?`<a href="${r.link}" target="_blank" rel="noopener" class="mention-link">View source ↗</a>`:''}
+    </div>
+  </div>`;
+}
+
+
+function escQ(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+function closeOverlay(e){ if(e.target===document.getElementById('overlay')) closeModal(); }
+
+
+// ═══════════════════════════════════════════════════════════
+//  OVERVIEW PAGE
+// ═══════════════════════════════════════════════════════════
+function renderOverview(){
+  const mk=currentMonth, pk=prevMonthKey(mk);
+  const ml=monthLabel(mk), pl=monthLabel(pk);
+  const el=document.getElementById('page-overview');
+  const brands=Object.keys(BRAND_CONFIG);
+  const allCurr=getRows('all',mk);
+
+  let cardsHtml='';
+  brands.forEach(bname=>{
+    const cfg=BRAND_CONFIG[bname];
+    const rows=getRows(bname,mk), prev=getRows(bname,pk);
+    const sc=aggSentiment(rows), sp=aggSentiment(prev);
+    const tot=sc.Positive+sc.Neutral+sc.Negative;
+    const ptot=sp.Positive+sp.Neutral+sp.Negative;
+    const diff=tot-ptot;
+    const dpct=ptot>0?((diff/ptot)*100).toFixed(1):'—';
+    const posW=tot>0?((sc.Positive/tot)*100).toFixed(0):0;
+    const neuW=tot>0?((sc.Neutral/tot)*100).toFixed(0):0;
+    const negW=tot>0?((sc.Negative/tot)*100).toFixed(0):0;
+    cardsHtml+=`<div class="brand-card" onclick="nav('${cfg.key}')">
+      <div class="brand-card-accent" style="background:${cfg.color}"></div>
+      <div class="brand-card-name">${bname}</div>
+      <div class="brand-card-total" style="color:${cfg.color}">${tot.toLocaleString()}</div>
+      <div class="brand-card-label">mentions · ${ml}</div>
+      <div class="brand-card-delta kpi-delta ${diff>=0?'up':'dn'}">${diff>=0?'▲':'▼'} ${Math.abs(dpct)}% vs ${pl}</div>
+      <div class="brand-card-sentiment">
+        <div style="background:#6EE7B7;width:${posW}%"></div>
+        <div style="background:#FDE68A;width:${neuW}%"></div>
+        <div style="background:#FCA5A5;width:${negW}%"></div>
+      </div>
+      <div class="brand-card-legend">
+        <span class="brand-card-legend-item"><span class="brand-card-legend-dot" style="background:#6EE7B7"></span>${posW}% Pos</span>
+        <span class="brand-card-legend-item"><span class="brand-card-legend-dot" style="background:#FDE68A"></span>${neuW}% Neu</span>
+        <span class="brand-card-legend-item"><span class="brand-card-legend-dot" style="background:#FCA5A5"></span>${negW}% Neg</span>
+      </div>
+      <div class="brand-card-cta">Open full report →</div>
+    </div>`;
+  });
+
+  let summariesHtml='';
+  brands.forEach(bname=>{
+    const cfg=BRAND_CONFIG[bname];
+    const rows=getRows(bname,mk), prev=getRows(bname,pk);
+    const sc=aggSentiment(rows), sp=aggSentiment(prev);
+    const tot=sc.Positive+sc.Neutral+sc.Negative, ptot=sp.Positive+sp.Neutral+sp.Negative;
+    const diff=tot-ptot, dpct=ptot>0?((diff/ptot)*100).toFixed(1):'—';
+    const tags=aggTags(rows), topTag=Object.entries(tags).sort((a,b)=>b[1]-a[1])[0];
+    const ints=aggIntentions(rows);
+    const compPct=tot>0?(((ints.complaint||0)+(ints.issue||0))/tot*100).toFixed(0):'0';
+    const negPct=tot>0?((sc.Negative/tot)*100).toFixed(1):'0';
+    const posPct=tot>0?((sc.Positive/tot)*100).toFixed(1):'0';
+    const prevNegPct=ptot>0?((sp.Negative/ptot)*100).toFixed(1):'0';
+    const nd=(parseFloat(negPct)-parseFloat(prevNegPct)).toFixed(1);
+    summariesHtml+=`<div class="written-summary" style="border-left:3px solid ${cfg.color};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:15px;font-weight:800;color:var(--blue-900);">${bname}</div>
+        <button onclick="nav('${cfg.key}')" style="font-size:11px;font-weight:600;color:${cfg.color};background:none;border:1px solid ${cfg.color}55;border-radius:6px;padding:5px 14px;cursor:pointer;font-family:var(--font);">Open report →</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Volume</div>
+          <div style="font-size:22px;font-weight:800;color:var(--blue-900);">${tot.toLocaleString()}</div>
+          <span class="kpi-delta ${diff>=0?'up':'dn'}" style="font-size:10px;padding:1px 6px;margin-top:4px;display:inline-block;">${diff>=0?'▲':'▼'} ${Math.abs(dpct)}%</span>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Negative</div>
+          <div style="font-size:22px;font-weight:800;color:var(--blue-900);">${negPct}%</div>
+          <span class="kpi-delta ${parseFloat(nd)>0?'dn':'up'}" style="font-size:10px;padding:1px 6px;margin-top:4px;display:inline-block;">${parseFloat(nd)>0?'▲':'▼'} ${Math.abs(nd)}pp</span>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Top Tag</div>
+          <div style="font-size:15px;font-weight:800;color:var(--blue-900);margin-top:4px;">${topTag?topTag[0]:'—'}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:3px;">${topTag?topTag[1]+' mentions':''}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Complaint + Issue</div>
+          <div style="font-size:22px;font-weight:800;color:var(--blue-900);">${compPct}%</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:3px;">of total</div>
+        </div>
+      </div>
+      <div class="ws-text">
+        <p><strong>${tot.toLocaleString()} mentions</strong> in ${ml}. Negative at <strong>${negPct}%</strong> (${parseFloat(nd)>0?'▲':'▼'} ${Math.abs(nd)}pp vs ${pl}), positive at <strong>${posPct}%</strong>. ${topTag?`Top topic: <strong>${topTag[0]}</strong> (${topTag[1]}).`:''}</p>
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML=`<div class="container">
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="brand-color-bar" style="background:linear-gradient(180deg,#93C5FD,#BFDBFE)"></div>
+        <div><div class="page-title">All Brands</div><div class="page-subtitle">${ml} · ${brands.length} Brands · ${allCurr.length.toLocaleString()} mentions</div></div>
+      </div>
+      <div class="comparison-pill"><div class="cp-label">Comparing with</div><div class="cp-value">${pl}</div></div>
+    </div>
+    <div class="section-label">Brands — click to open full report</div>
+    <div class="brand-cards-grid">${cardsHtml}</div>
+    <div class="section-label" style="margin-top:32px;">Monthly Summaries</div>
+    ${summariesHtml}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BRAND PAGE
+// ═══════════════════════════════════════════════════════════
+function renderBrandPage(brandKey){
+  const bname=Object.keys(BRAND_CONFIG).find(k=>BRAND_CONFIG[k].key===brandKey);
+  if(!bname) return;
+  const cfg=BRAND_CONFIG[bname];
+  const mk=currentMonth, pk=prevMonthKey(mk);
+  const ml=monthLabel(mk), pl=monthLabel(pk);
+  const rows=getRows(bname,mk), prev=getRows(bname,pk);
+  const sc=aggSentiment(rows), sp=aggSentiment(prev);
+  const total=rows.length, prevTotal=prev.length;
+  const tags=aggTags(rows), prevTags=aggTags(prev);
+  const ints=aggIntentions(rows), prevInts=aggIntentions(prev);
+  const plats=aggPlatforms(rows), prevPlats=aggPlatforms(prev);
+  const social={}, stores={}, prevSocial={}, prevStores={};
+  Object.entries(plats).forEach(([p,v])=>{ if(SOCIAL_PLATS.includes(p)) social[p]=v; else stores[p]=v; });
+  Object.entries(prevPlats).forEach(([p,v])=>{ if(SOCIAL_PLATS.includes(p)) prevSocial[p]=v; else prevStores[p]=v; });
+  const platMax=Math.max(...Object.values(plats),1);
+  const topTags=Object.entries(tags).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  const negPct=total>0?((sc.Negative/total)*100).toFixed(1):'0';
+  const posPct=total>0?((sc.Positive/total)*100).toFixed(1):'0';
+  const compPct=total>0?(((ints.complaint||0)+(ints.issue||0))/total*100).toFixed(0):'0';
+
+  let el=document.getElementById(`page-${brandKey}`);
+  if(!el){ el=document.createElement('div'); el.id=`page-${brandKey}`; el.className='page'; document.getElementById('page-brands').appendChild(el); }
+
+  el.innerHTML=`<div class="container">
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="brand-color-bar" style="background:${cfg.color}"></div>
+        <div><div class="page-title">${bname}</div><div class="page-subtitle">ORM + SMM Report · ${ml} · ${total.toLocaleString()} mentions</div></div>
+      </div>
+      <div class="comparison-pill"><div class="cp-label">Comparing with</div><div class="cp-value">${pl}</div></div>
+    </div>
+    <div class="section-label" style="margin-top:0;">Analyst Commentary</div>
+    <div class="notes-card" id="notes-card-${brandKey}">
+      <div class="notes-header">
+        <div>
+          <div class="notes-title">Monthly Analysis — ${bname} · ${ml}</div>
+          <div class="notes-meta" id="notes-meta-${brandKey}">Loading…</div>
+        </div>
+        <button class="notes-save-btn" id="notes-save-${brandKey}" onclick="saveNote('${brandKey}')">Save</button>
+      </div>
+      <!-- Saved note display (read mode) -->
+      <div class="notes-display" id="notes-display-${brandKey}"></div>
+      <!-- Edit area -->
+      <textarea class="notes-textarea" id="notes-ta-${brandKey}"
+        placeholder="Write your analysis for ${bname} in ${ml}…&#10;&#10;e.g. Key findings this month, recommended actions, notable trends vs previous month."
+        oninput="onNoteInput('${brandKey}')"></textarea>
+      <div class="notes-actions">
+        <div class="notes-status" id="notes-status-${brandKey}"></div>
+        <div style="font-size:10px;color:var(--text4);" id="notes-footer-${brandKey}">Shared via Google Sheets · visible to everyone</div>
+      </div>
+    </div>
+    <div class="kpi-row kpi-row-4" id="kpis-${brandKey}"></div>
+    <div class="section-label">Sentiment & Intention</div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Sentiment Distribution</div>
+        <div class="card-sub">${ml} vs ${pl} · click segment to explore</div>
+        <div class="sentiment-row">
+          <div class="sentiment-donut-wrap"><canvas id="sent-${brandKey}"></canvas></div>
+          <div class="sentiment-stats" id="sent-stats-${brandKey}"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+          ${['Negative','Neutral','Positive'].map(s=>`<button onclick="startDrill('${brandKey}',[{label:'(platform)',fn:r=>true},{label:'(topic)',fn:r=>true},{label:'${s}',fn:r=>r.sentiment==='${s}'}])" style="flex:1;padding:8px;border:1px solid ${SENT_COLORS[s]};background:${SENT_COLORS[s]}22;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;color:var(--blue-900);font-family:var(--font);">View ${s} Mentions →</button>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Intention Breakdown</div>
+        <div class="card-sub">Current vs previous month — stacked</div>
+        <div style="height:200px;position:relative;"><canvas id="intent-${brandKey}"></canvas></div>
+        <div class="intent-list" id="intent-list-${brandKey}" style="margin-top:14px;"></div>
+      </div>
+    </div>
+    <div class="section-label">Platform Distribution — click any row to drill in</div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Social Media Channels</div>
+        <div class="card-sub">Organic mentions across social platforms</div>
+        <div id="social-${brandKey}"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">App Stores &amp; Review Sites</div>
+        <div class="card-sub">Ratings, reviews &amp; complaint platforms</div>
+        <div id="stores-${brandKey}"></div>
+      </div>
+    </div>
+    <div class="section-label">Volume by Tag — click any tag to drill in</div>
+    <div class="g2">
+      <div class="card" style="grid-column:1/3;">
+        <div class="card-title">Top Topics · ${bname}</div>
+        <div class="card-sub">Bars = ${ml} · Line = ${pl}</div>
+        <div class="tag-chart-wrap"><canvas id="tags-${brandKey}"></canvas></div>
+        ${topTags[0]?`<div class="summary-box">Top tag: <strong>${topTags[0][0]}</strong> — ${topTags[0][1]} mentions${topTags[1]?`. Runner-up: <strong>${topTags[1][0]}</strong> — ${topTags[1][1]} mentions.`:'.'}</div>`:''}
+      </div>
+    </div>
+    <div class="section-label">All Tags — clickable list</div>
+    <div class="card">
+      <div class="card-title">Tags by Volume</div>
+      <div class="card-sub">Click any tag to view filtered mentions with source links</div>
+      <div id="tag-list-${brandKey}" style="margin-top:8px;"></div>
+    </div>
+    <div class="section-label">ORM Response Rate</div>
+    <div class="card">
+      <div class="card-title">Responded Mentions</div>
+      <div class="card-sub">Mentions where ORM department has replied · "Fixed" indicator</div>
+      <div id="resp-rate-${brandKey}" style="margin-top:8px;"></div>
+    </div>
+    <div class="section-label">Emotion Heatmap — click any cell to explore</div>
+    <div class="card">
+      <div class="card-title">Emotion × Platform</div>
+      <div class="card-sub">Intensity = proportion of emotional mentions per platform · click cell to drilldown</div>
+      <div class="heatmap-wrap"><table class="heatmap-table" id="hm-${brandKey}"></table></div>
+    </div>
+    <div class="section-label">Key Insights</div>
+    <div class="insight-list" id="insights-${brandKey}"></div>
+  </div>`;
+
+  // Render all components
+  renderKPIs(document.getElementById(`kpis-${brandKey}`), sc, sp, rows, prev);
+  makeDonut(`sent-${brandKey}`,['Positive','Neutral','Negative'],[sc.Positive,sc.Neutral,sc.Negative],['#6EE7B7','#FDE68A','#FCA5A5']);
+  renderSentimentStats(document.getElementById(`sent-stats-${brandKey}`), sc, sp);
+  makeIntentChart(`intent-${brandKey}`, ints, prevInts, total, prevTotal);
+  renderIntentList(document.getElementById(`intent-list-${brandKey}`), ints, total);
+  renderPlatformList(document.getElementById(`social-${brandKey}`), social, prevSocial, platMax, brandKey, '');
+  renderPlatformList(document.getElementById(`stores-${brandKey}`), stores, prevStores, platMax, brandKey, '');
+  if(topTags.length) makeTagBar(`tags-${brandKey}`,topTags.map(t=>t[0]),topTags.map(t=>t[1]),topTags.map(t=>prevTags[t[0]]||0),cfg.color);
+  renderTagsSection(document.getElementById(`tag-list-${brandKey}`), tags, brandKey);
+  renderHeatmap(document.getElementById(`hm-${brandKey}`), rows, brandKey);
+  renderInsights(document.getElementById(`insights-${brandKey}`), rows, prev, bname);
+  renderResponseRate(document.getElementById(`resp-rate-${brandKey}`), rows, brandKey);
+  // Load saved note for this brand+month
+  loadNote(brandKey);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  ANALYST NOTES — per brand + month
+//  Load uses JSONP (script tag injection) — bypasses CORS redirect issue
+//  with Apps Script Web Apps completely. Save uses GET params (no preflight).
+//  Falls back to localStorage cache if API unreachable.
+// ═══════════════════════════════════════════════════════════
+
+function lsKey(bk){ return `orm-note:${bk}:${currentMonth}`; }
+function fmtTs(iso){
+  try{ return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return ''; }
+}
+function brandLabel(bk){
+  const bn = Object.keys(BRAND_CONFIG).find(k=>BRAND_CONFIG[k].key===bk)||'';
+  return BRAND_CONFIG[bn]?.label || bk;
+}
+
+// ── JSONP helper — the only reliable way to read from Apps Script in browser ──
+// Apps Script redirects fetch() through googleusercontent.com which browsers
+// block under CORS. Script tags have no such restriction.
+function jsonpRequest(url, params){
+  return new Promise((resolve, reject)=>{
+    const cbName = '_ormCb_' + Date.now() + '_' + Math.floor(Math.random()*9999);
+    const timeout = setTimeout(()=>{
+      cleanup();
+      reject(new Error('JSONP timeout'));
+    }, 8000);
+
+    window[cbName] = function(data){
+      cleanup();
+      resolve(data);
+    };
+
+    function cleanup(){
+      clearTimeout(timeout);
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    params.callback = cbName;
+    const qs = Object.entries(params).map(([k,v])=>
+      encodeURIComponent(k)+'='+encodeURIComponent(v)
+    ).join('&');
+
+    const script = document.createElement('script');
+    script.src = `${url}?${qs}`;
+    script.onerror = ()=>{ cleanup(); reject(new Error('JSONP script error')); };
+    document.head.appendChild(script);
+  });
+}
+
+// ── Load ─────────────────────────────────────────────────────────────────
+async function loadNote(bk){
+  const metaEl    = document.getElementById(`notes-meta-${bk}`);
+  const displayEl = document.getElementById(`notes-display-${bk}`);
+  const taEl      = document.getElementById(`notes-ta-${bk}`);
+  if(!metaEl) return;
+  metaEl.textContent = 'Loading…';
+
+  if(NOTES_API_URL){
+    try{
+      const data = await jsonpRequest(NOTES_API_URL, {
+        action: 'get',
+        brand:  brandLabel(bk),
+        month:  monthLabel(currentMonth),
+      });
+      if(data.ok){
+        const text = data.text || '';
+        taEl.value            = text;
+        displayEl.textContent = text;
+        if(text){
+          const ts = data.ts ? fmtTs(data.ts) : '';
+          metaEl.textContent = `Last saved ${ts}${data.author?' by '+data.author:''}`;
+        } else {
+          metaEl.textContent = 'No note yet — write one below';
+        }
+        // Cache locally for fallback
+        try{ localStorage.setItem(lsKey(bk), JSON.stringify({text, ts: data.ts})); }catch(e){}
+        return;
+      }
+    }catch(e){
+      console.warn('Notes API load failed, using localStorage:', e.message);
+    }
+    // API failed — fall through to localStorage
+    metaEl.textContent = 'API unavailable — showing local cache';
+  }
+
+  // localStorage fallback
+  try{
+    const raw = localStorage.getItem(lsKey(bk));
+    if(raw){
+      const d = JSON.parse(raw);
+      const text = d.text||'';
+      taEl.value = text; displayEl.textContent = text;
+      const ts = d.ts ? fmtTs(new Date(typeof d.ts==='number'? new Date(d.ts).toISOString() : d.ts).toString()) : '';
+      metaEl.textContent = ts ? `Last saved ${ts} · local cache` : 'Loaded from local cache';
+    } else {
+      taEl.value=''; displayEl.textContent='';
+      metaEl.textContent = 'No note yet — write one below';
+    }
+  }catch(e){ metaEl.textContent='No note yet'; }
+}
+
+// ── Save — GET params, no preflight needed ───────────────────────────────
+async function saveNote(bk){
+  const taEl     = document.getElementById(`notes-ta-${bk}`);
+  const metaEl   = document.getElementById(`notes-meta-${bk}`);
+  const statusEl = document.getElementById(`notes-status-${bk}`);
+  const saveBtn  = document.getElementById(`notes-save-${bk}`);
+  const displayEl= document.getElementById(`notes-display-${bk}`);
+  if(!taEl) return;
+
+  const text = taEl.value.trim();
+  saveBtn.disabled = true;
+  statusEl.className = 'notes-status saving';
+  statusEl.textContent = 'Saving…';
+
+  // Cache locally immediately
+  try{ localStorage.setItem(lsKey(bk), JSON.stringify({text, ts: Date.now()})); }catch(e){}
+
+  if(NOTES_API_URL){
+    try{
+      const data = await jsonpRequest(NOTES_API_URL, {
+        action: 'save',
+        brand:  brandLabel(bk),
+        month:  monthLabel(currentMonth),
+        text,
+        author: 'ORM Team',
+      });
+      if(data.ok){
+        displayEl.textContent = text;
+        const ts = data.ts ? fmtTs(data.ts) : fmtTs(new Date().toISOString());
+        metaEl.textContent = `Last saved ${ts} by ORM Team`;
+        statusEl.className = 'notes-status saved';
+        statusEl.textContent = '✓ Saved to Google Sheets — visible to everyone';
+        setTimeout(()=>{ statusEl.textContent=''; statusEl.className='notes-status'; }, 3500);
+        saveBtn.disabled = false;
+        return;
+      } else {
+        throw new Error(data.error||'API error');
+      }
+    }catch(e){
+      console.warn('Notes save via API failed:', e.message);
+      // Already saved to localStorage above — inform user
+      statusEl.className = 'notes-status error';
+      statusEl.textContent = '⚠ Could not reach Sheets — saved locally only';
+      displayEl.textContent = text;
+      metaEl.textContent = `Last saved locally (${fmtTs(new Date().toISOString())})`;
+      setTimeout(()=>{ statusEl.textContent=''; statusEl.className='notes-status'; }, 4000);
+      saveBtn.disabled = false;
+      return;
+    }
+  }
+
+  // No API configured — localStorage only
+  displayEl.textContent = text;
+  metaEl.textContent = `Last saved ${fmtTs(new Date().toISOString())} · local only`;
+  statusEl.className = 'notes-status saved';
+  statusEl.textContent = '✓ Saved locally';
+  setTimeout(()=>{ statusEl.textContent=''; statusEl.className='notes-status'; }, 2500);
+  saveBtn.disabled = false;
+}
+
+function onNoteInput(bk){
+  const s = document.getElementById(`notes-status-${bk}`);
+  if(s){ s.className='notes-status'; s.textContent='Unsaved changes'; }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function nav(brand){
+  currentBrand=brand;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.brand-tab').forEach(t=>t.classList.remove('active'));
+  let el=document.getElementById('page-'+brand);
+  if(!el){ el=document.createElement('div'); el.id='page-'+brand; el.className='page'; document.getElementById('page-brands').appendChild(el); }
+  el.classList.add('active');
+  const tab=document.querySelector(`[data-brand="${brand}"]`);
+  if(tab) tab.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(brand==='overview') renderOverview();
+  else renderBrandPage(brand);
+}
+function changeMonth(v){ currentMonth=v; nav(currentBrand); }
+
+function buildUI(){
+  const sel=document.getElementById('month-select');
+  sel.innerHTML=AVAILABLE_MONTHS.map(mk=>`<option value="${mk}">${monthLabel(mk)}</option>`).join('');
+  sel.value=currentMonth;
+  const tabs=document.getElementById('brand-tabs');
+  const all=[{key:'overview',label:'All Brands'},...Object.values(BRAND_CONFIG).map(c=>({key:c.key,label:c.label}))];
+  tabs.innerHTML=all.map(b=>`<button class="brand-tab ${b.key===currentBrand?'active':''}" data-brand="${b.key}" onclick="nav('${b.key}')">${b.label}</button>`).join('');
+}
+
+function processData(rows){
+  ALL_ROWS=rows;
+  const monthSet=new Set(rows.map(r=>r.monthKey));
+  AVAILABLE_MONTHS=[...monthSet].sort();
+  if(!AVAILABLE_MONTHS.includes(currentMonth))
+    currentMonth=AVAILABLE_MONTHS[AVAILABLE_MONTHS.length-1]||'';
+  document.getElementById('data-badge').textContent=`${rows.length.toLocaleString()} rows · ${AVAILABLE_MONTHS.length} month${AVAILABLE_MONTHS.length!==1?'s':''}`;
+  buildUI();
+}
+
+async function refreshData(){
+  const btn=document.querySelector('.refresh-btn');
+  btn.textContent='↻ Loading…'; btn.disabled=true;
+  try{ const rows=await fetchData(); processData(rows); nav(currentBrand); }
+  catch(e){ alert('Refresh failed: '+e.message); }
+  btn.textContent='↻ Refresh'; btn.disabled=false;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('load', async ()=>{
+  try{
+    const rows=await fetchData();
+    loaderMsg('Building dashboard…');
+    processData(rows);
+    currentMonth=AVAILABLE_MONTHS[AVAILABLE_MONTHS.length-1]||'';
+    Object.values(BRAND_CONFIG).forEach(cfg=>{
+      if(!document.getElementById('page-'+cfg.key)){
+        const d=document.createElement('div'); d.id='page-'+cfg.key; d.className='page';
+        document.getElementById('page-brands').appendChild(d);
+      }
+    });
+    const loader=document.getElementById('loader');
+    loader.classList.add('hide');
+    setTimeout(()=>loader.style.display='none',500);
+    document.getElementById('topbar').style.display='flex';
+    document.getElementById('page-overview').classList.add('active');
+    renderOverview();
+  }catch(err){
+    loaderMsg('');
+    const e=document.getElementById('loader-error');
+    e.style.display='block';
+    e.innerHTML=`<strong>Could not load data.</strong><br>${err.message}<br><br>Ensure the Google Sheet is shared as <em>"Anyone with the link can view"</em>.<br><br><button onclick="location.reload()" style="margin-top:8px;background:var(--blue-400);color:#fff;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-family:var(--font);font-weight:600;">Retry</button>`;
+  }
+});
+</script>
+</body>
+</html>
